@@ -1,5 +1,7 @@
 # BT Awake — fix for the Bluetooth remote dying in standby on Xiaomi Smart Projector L1 Pro
 
+[Русская версия](README.ru.md)
+
 A 12 KB Android TV service that keeps the Bluetooth stack of the **Xiaomi Smart Projector L1 Pro** alive while the projector is in standby. No root required.
 
 **Device:** Xiaomi Smart Projector L1 Pro (model `C045RGN`, codename `tianshan`, product `Brooke`), made by Formovie (Fengmi), MediaTek MT9630 (T32), Google TV on Android 14, firmware `UKNV.260130.001`. Other projectors on the same Formovie `tianshan` board (e.g. `C025RGN`, Formovie Xming Page One) very likely have the same bug.
@@ -101,13 +103,3 @@ adb shell dumpsys bluetooth_manager | grep -m1 "state"
 ## License
 
 MIT.
-
----
-
-## Кратко по-русски
-
-**Проблема.** На проекторе Xiaomi Smart Projector L1 Pro (C045RGN, Google TV 14, прошивка UKNV.260130.001) после сна отваливается Bluetooth-пульт, помогает только перезагрузка.
-
-**Причина.** В режиме ожидания система каждые 5–9 минут пытается уснуть. Драйвер MediaTek переводит USB-чип Bluetooth в режим пробуждения по BLE, посылая ему свои команды в обход Android. При пробуждении ответ на вендорную команду `0xFCCE` прилетает в стек Android, который ждёт ответа на подключение к пульту, и стек аварийно завершается. Каждое падение оставляет в `system_server` «мёртвое» подключение; когда их накапливается ~3000, Bluetooth больше не запускается до перезагрузки. Это баг прошивки, root и обновлений для этой модели нет.
-
-**Решение.** Сервис BT Awake держит частичный wakelock, пока экран выключен: система не уходит в глубокий сон, чип не проходит цикл засыпания, стек не падает. Лампа и экран при этом спят как обычно. Цена: в режиме ожидания процессор не засыпает, это примерно 1–3 Вт сверх обычного потребления в ожидании. Замер: 14 падений за час до установки, 0 после. Установка — четыре команды adb, см. раздел *Install*.
