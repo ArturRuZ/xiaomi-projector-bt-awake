@@ -14,9 +14,9 @@ After a night (or a few days) in standby the Bluetooth remote stops working. Re-
 
 Traced with `adb logcat` / `dumpsys` on the stock firmware, no modifications:
 
-1. In standby the system tries to enter suspend every 5–9 minutes.
+1. In standby the system suspends to RAM and is woken every ~5 minutes (Google Play services heartbeat, HDMI-CEC polling and similar), stays up for about a minute and suspends again.
 2. The Bluetooth chip is attached over an internal USB bus (`btmtk_usb` driver). On suspend the MediaTek driver puts the chip into "Wake-on-BLE" mode by sending vendor HCI commands **directly to the chip, bypassing the Android Bluetooth stack** (`0xFD57` APCF filters, `0xFCC9` radio-off).
-3. ~1.3 s later the system resumes and the driver sends another vendor command, `0xFCCE`. The *COMMAND_STATUS* event for it is delivered to the Android stack, which at that moment is waiting for the reply to its own background `LE_EXTENDED_CREATE_CONNECTION` (reconnect to the bonded BLE remote). The stack hits an assertion and aborts:
+3. On the next wake-up the driver sends another vendor command, `0xFCCE`. The *COMMAND_STATUS* event for it is delivered to the Android stack, which at that moment is waiting for the reply to its own background `LE_EXTENDED_CREATE_CONNECTION` (reconnect to the bonded BLE remote). The stack hits an assertion and aborts:
 
    ```
    F bluetooth: assertion 'waiting_command_ == op_code' failed -
@@ -25,7 +25,7 @@ Traced with `adb logcat` / `dumpsys` on the stock firmware, no modifications:
    I ActivityManager: Process com.android.bluetooth (pid ...) has died: psvc PER
    ```
 
-   Every crash lands exactly ~60 ms after `btmtk_usb_resume`. ~10 crashes per hour of standby; none while the screen is on.
+   Every crash lands exactly ~60 ms after `btmtk_usb_resume`, i.e. once per wake-up: ~10 crashes per hour of standby, none while the screen is on.
 4. The stack restarts after every crash, but `system_server` leaks one dead `ConnectionRecord` to `com.android.bluetooth` per crash. After ~3000 of them (roughly 10–13 days of normal use) `bindService` fails:
 
    ```
@@ -48,7 +48,9 @@ The crash needs a suspend/resume cycle of the USB Bluetooth chip. An ordinary ap
 - releases it when the screen turns on,
 - starts itself on boot.
 
-Measured result: 14 Bluetooth crashes in the hour before installation, **0 crashes and 0 suspend attempts** afterwards. Side effect: the projector stays reachable over Wi-Fi in standby (ADB works without Wake-on-LAN). Cost: the CPU no longer suspends in standby, roughly 1–3 W on top of the normal standby draw (no battery here, so that is the whole price).
+Measured result: 14 Bluetooth crashes in the hour before installation, **0 crashes and 0 suspend cycles** in the next 5 hours. Side effect: the projector stays reachable over Wi-Fi in standby (ADB works without Wake-on-LAN).
+
+**Cost — read this before installing.** With the stock firmware the projector really sleeps in standby (SoC suspended ~90 % of the time). With BT Awake the SoC never suspends: it idles at ~1.45 GHz with the fan off (the fan driver is disabled in standby), so it draws a few watts more and runs warmer. Measured on the L1 Pro: CPU 76–78 °C after 5 h of standby with the wake lock vs. 63–66 °C ten minutes after releasing it; the fan thresholds for the CPU in the vendor thermal config are 93/95 °C, so this is well within limits, but after ~4.5 h the vendor thermal service starts logging `adjustFanRpm error, get fan1 rpm = 0` every second because it wants the fan and can't have it. If you prefer, unplug the projector or switch it off at the wall when you won't use it for days.
 
 ## Install
 
