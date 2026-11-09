@@ -46,7 +46,7 @@ The crash needs a suspend/resume cycle of the USB Bluetooth chip. An ordinary ap
 - releases it when the screen turns on,
 - starts itself on boot.
 
-Measured result: 14 Bluetooth crashes in the hour before installation, **0 crashes and 0 suspend attempts** afterwards. Side effect: the projector stays reachable over Wi-Fi in standby (ADB works without Wake-on-LAN). Cost: a couple of watts in standby for the idle CPU.
+Measured result: 14 Bluetooth crashes in the hour before installation, **0 crashes and 0 suspend attempts** afterwards. Side effect: the projector stays reachable over Wi-Fi in standby (ADB works without Wake-on-LAN). Cost: the CPU no longer suspends in standby, roughly 1–3 W on top of the normal standby draw (no battery here, so that is the whole price).
 
 ## Install
 
@@ -110,4 +110,4 @@ MIT.
 
 **Причина.** В режиме ожидания система каждые 5–9 минут пытается уснуть. Драйвер MediaTek переводит USB-чип Bluetooth в режим пробуждения по BLE, посылая ему свои команды в обход Android. При пробуждении ответ на вендорную команду `0xFCCE` прилетает в стек Android, который ждёт ответа на подключение к пульту, и стек аварийно завершается. Каждое падение оставляет в `system_server` «мёртвое» подключение; когда их накапливается ~3000, Bluetooth больше не запускается до перезагрузки. Это баг прошивки, root и обновлений для этой модели нет.
 
-**Решение.** Сервис BT Awake держит частичный wakelock, пока экран выключен: система не уходит в глубокий сон, чип не проходит цикл засыпания, стек не падает. Лампа и экран при этом спят как обычно. Замер: 14 падений за час до установки, 0 после. Установка — четыре команды adb, см. раздел *Install*.
+**Решение.** Сервис BT Awake держит частичный wakelock, пока экран выключен: система не уходит в глубокий сон, чип не проходит цикл засыпания, стек не падает. Лампа и экран при этом спят как обычно. Цена: в режиме ожидания процессор не засыпает, это примерно 1–3 Вт сверх обычного потребления в ожидании. Замер: 14 падений за час до установки, 0 после. Установка — четыре команды adb, см. раздел *Install*.
