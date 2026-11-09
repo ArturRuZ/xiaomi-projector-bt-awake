@@ -33,6 +33,6 @@ echo "OK: out/btawake.apk"
 
 # Install:
 #   adb connect <projector-ip>
-#   adb install -r -g out/btawake.apk
+#   adb install -r -g out/btawake.apk    # -g grants BLUETOOTH_CONNECT, required
 #   adb shell dumpsys deviceidle whitelist +art.applab.btawake
 #   adb shell am start-foreground-service -n art.applab.btawake/.AwakeService
